@@ -797,7 +797,7 @@ window.webview.on("settings", function (s) {
 </html>`
     }
 
-    const SIDEBAR_ICON = `<svg xmlns="http://www.w3.org/2000/svg" class="UI-VerticalMenu__itemIcon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>`
+    const SIDEBAR_ICON = `<span data-seastats-icon="true" style="position:relative;display:inline-flex;width:24px;height:24px;min-width:24px;min-height:24px;align-items:center;justify-content:center;vertical-align:middle;color:currentColor;overflow:visible"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.15" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>`
 
     return {
         CACHE_KEY: CACHE_KEY,
