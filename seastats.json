@@ -1,7 +1,7 @@
 {
   "id": "seastats",
   "name": "SeaStats",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "language": "typescript",
   "type": "plugin",
   "description": "AniList statistics inside Seanime: stats strips on the home and manga pages, a full dashboard with genre, studio, format and status breakdowns, and a favorite heart button on media pages.",

@@ -79,10 +79,23 @@ interface ThemeColors {
     g900: string
 }
 
+interface StripSettings {
+    hideStrips: boolean
+    hideStripFavorites: boolean
+}
+
 function createSeaStats() {
     const CACHE_KEY = "stats.data.v2"
     const CACHE_AT_KEY = "stats.fetchedAt"
     const CACHE_TTL_MS = 12 * 60 * 60 * 1000
+    const SETTINGS_KEY = "settings.v1"
+
+    function sanitizeSettings(raw: any): StripSettings {
+        return {
+            hideStrips: !!(raw && raw.hideStrips),
+            hideStripFavorites: !!(raw && raw.hideStripFavorites),
+        }
+    }
 
     const STATS_QUERY = `query {
       Viewer {
@@ -351,6 +364,18 @@ function createSeaStats() {
     }
     .btn:hover { background: var(--subtle-hi); border-color: color-mix(in srgb, var(--brand-light) 35%, transparent); }
     .btn:active { transform: scale(0.97); }
+    .icon-btn { display: inline-flex; align-items: center; padding: 0.38rem 0.55rem; }
+    .settings-panel {
+        display: flex; flex-direction: column; gap: 0.7rem;
+        max-width: 560px; margin: 0 0 1.1rem auto;
+    }
+    .settings-title {
+        font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
+        text-transform: uppercase; color: var(--muted-hi);
+    }
+    .settings-row { display: flex; align-items: center; gap: 0.6rem; font-size: 0.85rem; color: var(--muted-hi); cursor: pointer; }
+    .settings-row:hover { color: var(--fg); }
+    .settings-row input { width: 15px; height: 15px; accent-color: var(--brand); cursor: pointer; flex: 0 0 auto; }
     .section-title {
         display: flex; align-items: center; gap: 0.55rem;
         font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
@@ -445,10 +470,11 @@ function createSeaStats() {
     }
     `
 
-    function buildShellHtml(kind: "widget" | "dashboard", lockedMode?: "anime" | "manga", theme?: ThemeColors): string {
+    function buildShellHtml(kind: "widget" | "dashboard", lockedMode?: "anime" | "manga", theme?: ThemeColors, settings?: StripSettings): string {
         const isDash = kind === "dashboard"
         const initialMode = isDash ? "anime" : (lockedMode || "anime")
         const t = theme || DEFAULT_THEME
+        const s = sanitizeSettings(settings)
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -461,6 +487,9 @@ function createSeaStats() {
 var MODE = "${initialMode}"
 var PAYLOAD = null
 var IS_DASH = ${isDash}
+var SETTINGS = ${JSON.stringify(s)}
+var SETTINGS_OPEN = false
+var LAST_SETTINGS = JSON.stringify(SETTINGS)
 
 function fmtNum(n) {
     return String(Math.round(n)).replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",")
@@ -536,6 +565,21 @@ function renderToggle() {
     return '<div class="toggle" data-active="' + esc(MODE) + '"><span class="thumb"></span>' +
         '<button data-mode="anime" class="' + (MODE === "anime" ? "active" : "") + '">Anime</button>' +
         '<button data-mode="manga" class="' + (MODE === "manga" ? "active" : "") + '">Manga</button>' +
+        '</div>'
+}
+
+function renderSettingsButton() {
+    return '<button class="btn icon-btn" data-settings-toggle title="SeaStats settings">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>' +
+        '</button>'
+}
+
+function renderSettingsPanel() {
+    if (!SETTINGS_OPEN) return ''
+    return '<div class="card settings-panel reveal">' +
+        '<div class="settings-title">Settings</div>' +
+        '<label class="settings-row"><input type="checkbox" data-setting="hideStrips"' + (SETTINGS.hideStrips ? ' checked' : '') + '><span>Hide the stats strip on the Home and Manga pages</span></label>' +
+        '<label class="settings-row"><input type="checkbox" data-setting="hideStripFavorites"' + (SETTINGS.hideStripFavorites ? ' checked' : '') + '><span>Hide favorites in the Home and Manga strips</span></label>' +
         '</div>'
 }
 
@@ -661,8 +705,9 @@ function render() {
     var m = d[MODE]
     ${isDash ? `var html = '<div class="topbar reveal">' +
         '<span class="brandmark"><span class="t">SeaStats</span><span class="u">' + esc(d.username) + '</span></span>' +
-        '<span class="right-tools">' + renderToggle() + '<span class="muted">Updated ' + new Date(d.fetchedAt).toLocaleString() + '</span> <button class="btn" onclick=\\'window.webview.send("refresh")\\'>Refresh</button></span>' +
+        '<span class="right-tools">' + renderToggle() + '<span class="muted">Updated ' + new Date(d.fetchedAt).toLocaleString() + '</span> <button class="btn" onclick=\\'window.webview.send("refresh")\\'>Refresh</button> ' + renderSettingsButton() + '</span>' +
         '</div>'
+    html += renderSettingsPanel()
     if (!m.count) {
         html += '<div class="card zero reveal"><span class="big">🌱</span>No ' + esc(MODE) + ' data yet.</div>'
     } else {
@@ -683,7 +728,7 @@ function render() {
         '<span class="brandmark"><span class="t">SeaStats</span></span>' +
         (m.count ? renderChips(m) : '<span class="muted">No ' + esc(MODE) + ' data yet</span>') +
         '</div>'
-    if (m.count) html += renderFavorites(m, false)`}
+    if (m.count && !SETTINGS.hideStripFavorites) html += renderFavorites(m, false)`}
     root.innerHTML = html
     var btns = root.querySelectorAll(".toggle button")
     for (var i = 0; i < btns.length; i++) {
@@ -697,6 +742,22 @@ function render() {
         favs[j].addEventListener("click", openFav)
         favs[j].addEventListener("keydown", function (ev) {
             if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); openFav(ev) }
+        })
+    }
+    var gear = root.querySelector("[data-settings-toggle]")
+    if (gear) {
+        gear.addEventListener("click", function () {
+            SETTINGS_OPEN = !SETTINGS_OPEN
+            render()
+        })
+    }
+    var settingInputs = root.querySelectorAll("[data-setting]")
+    for (var k = 0; k < settingInputs.length; k++) {
+        settingInputs[k].addEventListener("change", function (ev) {
+            var key = ev.currentTarget.getAttribute("data-setting")
+            SETTINGS[key] = !!ev.currentTarget.checked
+            LAST_SETTINGS = JSON.stringify(SETTINGS)
+            window.webview.send("save-settings", SETTINGS)
         })
     }
 }
@@ -721,22 +782,34 @@ window.webview.on("theme", function (t) {
     r.setProperty("--brand", t.brand)
     r.setProperty("--brand-light", t.brandLight)
 })
+
+window.webview.on("settings", function (s) {
+    if (!s) return
+    var j = ""
+    try { j = JSON.stringify(s) } catch (e) {}
+    if (!j || j === LAST_SETTINGS) return
+    LAST_SETTINGS = j
+    SETTINGS = s
+    render()
+})
 </script>
 </body>
 </html>`
     }
 
-    const SIDEBAR_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>`
+    const SIDEBAR_ICON = `<svg xmlns="http://www.w3.org/2000/svg" class="UI-VerticalMenu__itemIcon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>`
 
     return {
         CACHE_KEY: CACHE_KEY,
         CACHE_AT_KEY: CACHE_AT_KEY,
         CACHE_TTL_MS: CACHE_TTL_MS,
+        SETTINGS_KEY: SETTINGS_KEY,
         STATS_QUERY: STATS_QUERY,
         DEFAULT_THEME: DEFAULT_THEME,
         errMsg: errMsg,
         normalizeStats: normalizeStats,
         parseTheme: parseTheme,
+        sanitizeSettings: sanitizeSettings,
         buildShellHtml: buildShellHtml,
         SIDEBAR_ICON: SIDEBAR_ICON,
     }
@@ -748,15 +821,20 @@ function init() {
         const S = $shared.use("seastats")
         const statsState = ctx.state(null)
 
+        let settings = S.sanitizeSettings(null)
+        try { settings = S.sanitizeSettings($storage.get(S.SETTINGS_KEY)) } catch (e) {}
+
         const widget = ctx.newWebview({
             slot: "after-home-screen-toolbar",
             fullWidth: true,
             autoHeight: true,
+            hidden: settings.hideStrips,
         })
         const mangaWidget = ctx.newWebview({
             slot: "manga-screen-bottom",
             fullWidth: true,
             autoHeight: true,
+            hidden: settings.hideStrips,
         })
         const dashboard = ctx.newWebview({
             slot: "screen",
@@ -766,13 +844,17 @@ function init() {
         })
 
         let theme = S.DEFAULT_THEME
+        const settingsState = ctx.state(settings)
 
-        widget.setContent(() => S.buildShellHtml("widget", "anime", theme))
-        mangaWidget.setContent(() => S.buildShellHtml("widget", "manga", theme))
-        dashboard.setContent(() => S.buildShellHtml("dashboard", undefined, theme))
+        widget.setContent(() => S.buildShellHtml("widget", "anime", theme, settings))
+        mangaWidget.setContent(() => S.buildShellHtml("widget", "manga", theme, settings))
+        dashboard.setContent(() => S.buildShellHtml("dashboard", undefined, theme, settings))
         widget.channel.sync("stats", statsState)
         mangaWidget.channel.sync("stats", statsState)
         dashboard.channel.sync("stats", statsState)
+        widget.channel.sync("settings", settingsState)
+        mangaWidget.channel.sync("settings", settingsState)
+        dashboard.channel.sync("settings", settingsState)
 
         const THEME_VARS = ["--color-brand-500", "--color-brand-400", "--background", "--paper", "--color-gray-800", "--color-gray-900"]
         async function syncAppTheme() {
@@ -958,6 +1040,27 @@ function init() {
         }
 
         dashboard.channel.on("refresh", () => { loadStats(true) })
+        dashboard.channel.on("save-settings", (raw: any) => {
+            try {
+                const next = S.sanitizeSettings(raw)
+                if (JSON.stringify(next) === JSON.stringify(settings)) return
+                const stripsChanged = next.hideStrips !== settings.hideStrips
+                settings = next
+                $storage.set(S.SETTINGS_KEY, settings)
+                settingsState.set(settings)
+                if (stripsChanged) {
+                    if (settings.hideStrips) {
+                        widget.hide()
+                        mangaWidget.hide()
+                    } else {
+                        widget.show()
+                        mangaWidget.show()
+                    }
+                }
+            } catch (e) {
+                console.error("SeaStats: failed to save settings: " + S.errMsg(e))
+            }
+        })
         widget.channel.on("open-media", openMedia)
         mangaWidget.channel.on("open-media", openMedia)
         dashboard.channel.on("open-media", openMedia)
