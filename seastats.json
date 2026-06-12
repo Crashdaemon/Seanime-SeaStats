@@ -1,0 +1,19 @@
+{
+  "id": "seastats",
+  "name": "SeaStats",
+  "version": "0.1.0",
+  "language": "typescript",
+  "type": "plugin",
+  "description": "AniList statistics inside Seanime: stats strips on the home and manga pages, a full dashboard with genre, studio, format and status breakdowns, and a favorite heart button on media pages.",
+  "author": "Crashdaemon",
+  "icon": "https://raw.githubusercontent.com/Crashdaemon/Seanime-SeaStats/main/seastats.png",
+  "lang": "en",
+  "payloadURI": "https://raw.githubusercontent.com/Crashdaemon/Seanime-SeaStats/main/seastats.ts",
+  "manifestURI": "https://raw.githubusercontent.com/Crashdaemon/Seanime-SeaStats/main/seastats.json",
+  "plugin": {
+    "version": "1",
+    "permissions": {
+      "scopes": ["anilist", "anilist-token", "database", "storage"]
+    }
+  }
+}
